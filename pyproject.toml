@@ -17,3 +17,6 @@ dependencies = [
 [project.urls]
 Repository = "https://github.com/devwithhans/streamfeed-parser"
 Developer = "https://devwithhans.com"
+
+[tool.setuptools]
+packages = ["streamfeed"]
