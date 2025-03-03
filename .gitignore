@@ -1,3 +1,72 @@
-dist/*
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
 dist/
-dist
+build/
+*.egg-info/
+*.egg
+.eggs/
+wheels/
+MANIFEST
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+coverage.xml
+*.cover
+.pytest_cache/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
+.python-version
+
+# Documentation
+docs/_build/
+docs/api/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Editor directories and files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Temporary files
+*.tmp
+*.swp
+.cache/
