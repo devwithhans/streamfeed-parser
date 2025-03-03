@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "streamfeed-parser"
 version = "0.1.1"
 description = "A lightweight streaming parser for CSV and XML feeds over HTTP/FTP with automatic compression handling."
-authors = [{ name = "Your Name", email = "your@email.com" }]
+authors = [{ name = "Hans-Christian Bøge Pedersen", email = "hello@devwithhans.com" }]
 license = { file = "LICENSE" }
 readme = "README.md"
 requires-python = ">=3.7"
@@ -15,8 +15,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/streamfeed-parser"
-Repository = "https://github.com/yourusername/streamfeed-parser"
+Repository = "https://github.com/devwithhans/streamfeed-parser"
 
 [tool.setuptools]
 packages = ["streamfeed"]
