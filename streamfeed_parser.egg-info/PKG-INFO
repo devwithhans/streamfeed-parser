@@ -1,0 +1,10 @@
+Metadata-Version: 2.2
+Name: streamfeed-parser
+Version: 0.1.0
+Summary: A lightweight streaming parser for CSV and XML feeds over HTTP/FTP with automatic compression handling.
+Author-email: Your Name <your@email.com>
+Project-URL: Homepage, https://github.com/yourusername/streamfeed-parser
+Project-URL: Repository, https://github.com/yourusername/streamfeed-parser
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
+Requires-Dist: requests
