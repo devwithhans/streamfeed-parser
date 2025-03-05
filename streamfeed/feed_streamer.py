@@ -38,6 +38,7 @@ def stream_feed(
     # Determine the XML item tag from feed_logic, defaulting to 'product'
     item_tag = feed_logic.get("xml_item_tag", "product") if feed_logic else "product"
 
+    # Example override for some custom URL checks
     if "datafeedwatch" in url:
         item_tag = "item"
 

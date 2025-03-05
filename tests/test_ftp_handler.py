@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from streamfeed.ftp_handler import parse_ftp_url, stream_from_ftp
+from streamfeed.ftp_handler import parse_ftp_url, stream_ftp_file
 
 
 def test_parse_ftp_url():
