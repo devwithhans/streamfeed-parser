@@ -54,26 +54,19 @@ def element_to_dict(element: ET.Element) -> Union[str, Dict[str, Any]]:
 def stream_xml_items_iterparse(
     file_obj, item_tag: str, limit_rows: Optional[int] = None
 ) -> Iterator[Dict[str, Any]]:
-    """
-    Use iterparse to stream large XML files element by element.
-    Only yield elements with the given item_tag.
-    """
+    stack = []
     count = 0
-    context = ET.iterparse(file_obj, events=("end",))
-
-    for event, elem in context:
-        if event == "end" and strip_namespace(elem.tag) == item_tag:
-            yield element_to_dict(elem)
-            count += 1
-            # Clear the element to save memory:
-            elem.clear()
-
-            if limit_rows is not None and count >= limit_rows:
-                # We should also clear the parent references to free memory
-                break
-
-    # If the file is huge and we didn't break, iterparse will continue,
-    # but you can close or let it exit as needed.
+    for event, elem in ET.iterparse(file_obj, events=("start", "end")):
+        if event == "start":
+            stack.append(strip_namespace(elem.tag))
+        else:  # event == "end"
+            tag = stack.pop()
+            if tag == item_tag and item_tag not in stack:
+                yield element_to_dict(elem)
+                count += 1
+                elem.clear()
+                if limit_rows is not None and count >= limit_rows:
+                    break
 
 
 def stream_xml_feed(
