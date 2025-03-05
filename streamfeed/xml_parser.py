@@ -2,6 +2,7 @@ import xml.etree.ElementTree as ET
 from typing import Optional, Dict, Any, Iterator, List, Union, Tuple
 import requests
 import zipfile
+import gzip
 import io
 import re
 
