@@ -4,6 +4,8 @@ import requests
 import zipfile
 import io
 import re
+import gzip
+import bz2
 
 
 def strip_namespace(tag: str) -> str:

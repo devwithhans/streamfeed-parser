@@ -5,6 +5,8 @@ from .detect import detect_separator
 import io
 import csv
 from itertools import chain, product
+import gzip
+import bz2
 
 
 def join_broken_csv_lines(lines_gen: Iterator[str]) -> Iterator[str]:

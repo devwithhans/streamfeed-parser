@@ -23,22 +23,13 @@ def test_stream_feed(mock_get, mock_detect):
     assert result[0] == {"name": "John", "age": "30"}
 
 
-# Alternative approach with more specific mocking
-# @patch("streamfeed.feed_streamer.stream_csv_feed")
-# @patch("requests.get")
-# def test_stream_feed_with_mocked_csv(mock_get, mock_csv_feed):
-#     # Setup mock response
-#     mock_response = MagicMock()
-#     mock_get.return_value = mock_response
+def test_from_feed():
+    feed_url = "ftp://rkp_4369604:xP62OSFTsvC7hs4AJiXMGgYM@aftp.linksynergy.com/53085_4369604_mp.xml.gzw"
 
-#     # Mock the CSV feed function to return predetermined rows
-#     mock_csv_feed.return_value = [
-#         {"name": "John", "age": "30"},
-#         {"name": "Alice", "age": "25"},
-#     ]
+    result = list(stream_feed(feed_url, limit_rows=2))
 
-#     url = "https://example.com/datafeed.csv"
-#     result = list(stream_feed(url, limit_rows=2))
+    print(result)
 
-#     assert len(result) == 2
-#     assert result[0] == {"name": "John", "age": "30"}
+    # assert len(result) == 2
+    # assert result[0] == {"id": "1", "name": "Shirt"}
+    # assert result[1] == {"id": "2", "name": "Pants"}
