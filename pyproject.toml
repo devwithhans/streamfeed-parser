@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "streamfeed-parser"
-version = "0.2.0"
+version = "0.2.5"
 description = "A lightweight streaming parser for CSV and XML feeds over HTTP/FTP with automatic compression handling."
 authors = [{ name = "Hans-Christian Bøge Pedersen", email = "hello@devwithhans.com" }]
 license = { file = "LICENSE" }
