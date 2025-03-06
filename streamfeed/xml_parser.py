@@ -87,6 +87,7 @@ def stream_xml_feed(
                         )
 
         elif decompress_type == "gz":
+            print("GZ")
             gz = gzip.GzipFile(fileobj=response.raw)
             yield from stream_xml_items_iterparse(
                 gz, item_tag=item_tag, limit_rows=limit_rows

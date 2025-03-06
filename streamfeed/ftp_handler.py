@@ -1,7 +1,6 @@
 import io
 import queue
 import threading
-from urllib.parse import urlparse
 from ftplib import FTP
 
 
@@ -82,23 +81,18 @@ class FTPResponse:
         return self._raw
 
     def _download_in_thread(self):
-        parsed = urlparse(self.url)
         try:
-            with FTP(parsed.hostname) as ftp:
-                ftp.login(parsed.username, parsed.password)
+            hostname, user, passwd, path = _parse_ftp_url(self.url)
+            with FTP(hostname) as ftp:
+                ftp.login(user, passwd)
 
                 def callback(data):
                     self._queue.put(data)
 
-                ftp.retrbinary(
-                    f"RETR {parsed.path}", callback, blocksize=self.chunk_size
-                )
-
+                ftp.retrbinary(f"RETR {path}", callback, blocksize=self.chunk_size)
         except Exception as e:
-            # If anything goes wrong, push the exception into the queue
             self._queue.put(e)
         finally:
-            # Signal completion
             self._queue.put(None)
 
     def iter_content(self, chunk_size: int = 8192):
@@ -131,3 +125,24 @@ class FTPResponse:
         """
         self._raw.close()
         self._stop_event.set()
+
+
+def _parse_ftp_url(url):
+    # Remove ftp://
+    no_scheme = url.replace("ftp://", "")
+    # Split out user:password@host/path
+    parts = no_scheme.split("/", 1)
+    user_host = parts[0]
+    path = parts[1] if len(parts) > 1 else ""
+
+    if "@" in user_host:
+        userpass, hostname = user_host.split("@", 1)
+        if ":" in userpass:
+            username, password = userpass.split(":", 1)
+        else:
+            username, password = userpass, ""
+    else:
+        hostname = user_host
+        username, password = "", ""
+
+    return hostname, username, password, path
