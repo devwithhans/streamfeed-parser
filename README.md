@@ -2,7 +2,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/streamfeed-parser.svg)](https://pypi.org/project/streamfeed-parser/)
 [![Python versions](https://img.shields.io/pypi/pyversions/streamfeed-parser.svg)](https://pypi.org/project/streamfeed-parser/)
-[![License](https://img.shields.io/github/license/devwithhans/streamfeed-parser.svg)](https://github.com/devwithhans/streamfeed-parser/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/devwithhans/streamfeed-parser.svg)](https://github.com/devwithhans/streamfeed-parser/LICENSE)
 
 A lightweight streaming parser for CSV and XML feeds over HTTP/FTP with automatic compression handling. Designed to efficiently process large data feeds without loading the entire file into memory.
 
