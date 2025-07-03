@@ -1,4 +1,4 @@
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 import ftplib
 import io
 
@@ -10,18 +10,46 @@ def parse_ftp_url(url: str) -> Tuple[str, str, str, str]:
     Parse an FTP URL into components: host, username, password, path.
     Format: ftp://[username:password@]host/path
     """
-    parsed = urlparse(url)
-    host = parsed.netloc
-    path = parsed.path
+    print("here")
 
-    # Extract username and password if present
-    username = password = ""
-    if "@" in host:
-        auth, host = host.split("@", 1)
-        if ":" in auth:
-            username, password = auth.split(":", 1)
+    # Handle URLs with special characters in credentials
+    # First, extract credentials manually to avoid urlparse issues with special chars
+    if "://" in url:
+        protocol, rest = url.split("://", 1)
+
+        # Check if there are credentials
+        if "@" in rest:
+            credentials, host_path = rest.split("@", 1)
+
+            # Split credentials into username and password
+            if ":" in credentials:
+                username, password = credentials.split(":", 1)
+                # URL decode the password to handle special characters
+                password = unquote(password)
+            else:
+                username = credentials
+                password = ""
+
+            # Parse the host and path part
+            if "/" in host_path:
+                host, path = host_path.split("/", 1)
+                path = "/" + path
+            else:
+                host = host_path
+                path = "/"
         else:
-            username = auth
+            # No credentials in URL
+            username = password = ""
+            host_path = rest
+
+            if "/" in host_path:
+                host, path = host_path.split("/", 1)
+                path = "/" + path
+            else:
+                host = host_path
+                path = "/"
+    else:
+        raise ValueError(f"Invalid FTP URL format: {url}")
 
     # Make sure path starts with /
     if not path.startswith("/"):
