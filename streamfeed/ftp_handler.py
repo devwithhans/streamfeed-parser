@@ -1,8 +1,52 @@
-from urllib.parse import urlparse, unquote
+import queue
+import threading
+from urllib.parse import unquote, urlparse
 import ftplib
 import io
 
-from typing import Tuple
+from typing import Generator, Tuple
+
+import io
+import threading
+import queue
+import ftplib
+from urllib.parse import urlparse
+
+
+class FTPStream(io.RawIOBase):
+    def __init__(self, generator):
+        self._iterator = generator
+        self._buffer = b""
+
+    def readable(self):
+        return True
+
+    def readinto(self, b):
+        # Fill buffer if empty
+        while len(self._buffer) < len(b):
+            try:
+                self._buffer += next(self._iterator)
+            except StopIteration:
+                break
+
+        output = self._buffer[: len(b)]
+        self._buffer = self._buffer[len(b) :]
+
+        n = len(output)
+        b[:n] = output
+        return n
+
+
+class FTPResponse:
+    def __init__(self, ftp_generator):
+        self.raw = io.BufferedReader(FTPStream(ftp_generator))
+
+    def close(self):
+        self.raw.close()
+
+    @property
+    def content(self):
+        return self.raw.read()
 
 
 def parse_ftp_url(url: str) -> Tuple[str, str, str, str]:
@@ -58,30 +102,42 @@ def parse_ftp_url(url: str) -> Tuple[str, str, str, str]:
     return host, username, password, path
 
 
-def stream_from_ftp(url: str) -> bytes:
-    """
-    Stream content from an FTP URL, returning the complete content as bytes.
-    """
+def get_ftp_size(url: str):
+    host, username, password, path = parse_ftp_url(url)
+    ftp = ftplib.FTP(host)
+    ftp.login(username, password) if username else ftp.login()
+    try:
+        size = ftp.size(path)
+    finally:
+        ftp.quit()
+    return size
+
+
+def stream_from_ftp(url: str, blocksize: int = 8192) -> Generator[bytes, None, None]:
     host, username, password, path = parse_ftp_url(url)
 
     ftp = ftplib.FTP(host)
-    try:
-        if username:
-            ftp.login(username, password)
-        else:
-            ftp.login()
+    ftp.login(username, password) if username else ftp.login()
 
-        # Create a buffer to hold data chunks
-        buffer = io.BytesIO()
+    q = queue.Queue()
 
-        # RETR command is used for downloading files
-        ftp.retrbinary(f"RETR {path}", buffer.write)
+    def callback(data):
+        q.put(data)
 
-        # Return the complete content
-        return buffer.getvalue()
-
-    finally:
+    def downloader():
         try:
-            ftp.quit()
-        except:
-            ftp.close()
+            ftp.retrbinary(f"RETR {path}", callback, blocksize=blocksize)
+        finally:
+            q.put(None)  # Sentinel to signal end of stream
+
+    t = threading.Thread(target=downloader)
+    t.start()
+
+    try:
+        while True:
+            chunk = q.get()
+            if chunk is None:
+                break
+            yield chunk
+    finally:
+        ftp.quit()

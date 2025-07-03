@@ -22,7 +22,7 @@ htmlcov/
 coverage.xml
 *.cover
 .pytest_cache/
-
+test.py
 # Virtual environments
 venv/
 env/
