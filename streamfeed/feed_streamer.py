@@ -16,12 +16,23 @@ from .csv_parser import stream_csv_lines, stream_csv_feed
 from .transform import explode_rows
 
 
+class StreamResponse:
+
+    def __init__(self, content_length: int, data: Dict[str, Any]):
+        self.content_length: int = content_length
+        self.data: Dict[str, Any] = data
+
+    def dict(self):
+        return {"content_lenght": self.content_length, "data": self.data}
+
+
 def stream_feed(
     url: str,
     feed_logic: Optional[Dict[str, Any]] = None,
     limit_rows: Optional[int] = None,
     max_field_length: Optional[int] = None,
-) -> Iterator[Dict[str, Any]]:
+    add_content_length: Optional[bool] = False,
+) -> Iterator[StreamResponse]:
     """
     Stream feed rows from a URL, detecting compression and whether
     it's CSV vs. XML. For XML, use the input variable item_tag from feed_logic (default 'product').
@@ -37,14 +48,20 @@ def stream_feed(
 
     # Determine the XML item tag from feed_logic, defaulting to 'product'
     item_tag = feed_logic.get("xml_item_tag", "product") if feed_logic else "product"
+    content_length = None
 
-    if "datafeedwatch" in url:
-        item_tag = "item"
+    def _responese(data):
+        if add_content_length:
+            for row in data:
+                yield StreamResponse(content_length=content_length, data=row)
+        else:
+            yield from data
 
     try:
         if is_ftp:
             # For FTP URLs, we download the content and create a file-like object
             content = stream_from_ftp(url)
+            content_length = len(content)
             file_obj = io.BytesIO(content)
 
             if compression_type == "zip":
@@ -52,58 +69,72 @@ def stream_feed(
                     for name in z.namelist():
                         with z.open(name, "r") as f:
                             if is_xml:
-                                yield from stream_xml_items_iterparse(
+                                raw_rows = stream_xml_items_iterparse(
                                     f, item_tag=item_tag, limit_rows=limit_rows
                                 )
                             else:
                                 lines_gen = (
                                     line.decode("utf-8", errors="replace") for line in f
                                 )
-                                yield from stream_csv_lines(
+                                raw_rows = stream_csv_lines(
                                     lines_gen, limit_rows, max_field_length
                                 )
+                            # Process data while file is still open
+                            yield from _responese(explode_rows(raw_rows, feed_logic))
+                            return
 
             elif compression_type == "gz":
                 with gzip.GzipFile(fileobj=file_obj) as gz:
                     if is_xml:
-                        yield from stream_xml_items_iterparse(
+                        raw_rows = stream_xml_items_iterparse(
                             gz, item_tag=item_tag, limit_rows=limit_rows
                         )
                     else:
                         lines_gen = (
                             line.decode("utf-8", errors="replace") for line in gz
                         )
-                        yield from stream_csv_lines(
+                        raw_rows = stream_csv_lines(
                             lines_gen, limit_rows, max_field_length
                         )
+                    # Process data while file is still open
+                    yield from _responese(explode_rows(raw_rows, feed_logic))
+                    return
 
             elif compression_type == "bz2":
                 with bz2.BZ2File(file_obj) as bz:
                     if is_xml:
-                        yield from stream_xml_items_iterparse(
+                        raw_rows = stream_xml_items_iterparse(
                             bz, item_tag=item_tag, limit_rows=limit_rows
                         )
                     else:
                         lines_gen = (
                             line.decode("utf-8", errors="replace") for line in bz
                         )
-                        yield from stream_csv_lines(
+                        raw_rows = stream_csv_lines(
                             lines_gen, limit_rows, max_field_length
                         )
+                    # Process data while file is still open
+                    yield from _responese(explode_rows(raw_rows, feed_logic))
+                    return
 
             else:  # No compression or unsupported
                 if is_xml:
-                    yield from stream_xml_items_iterparse(
+                    raw_rows = stream_xml_items_iterparse(
                         file_obj, item_tag=item_tag, limit_rows=limit_rows
                     )
                 else:
                     lines_gen = (
                         line.decode("utf-8", errors="replace") for line in file_obj
                     )
-                    yield from stream_csv_lines(lines_gen, limit_rows, max_field_length)
+                    raw_rows = stream_csv_lines(lines_gen, limit_rows, max_field_length)
+                # Process data while file is still open
+                yield from _responese(explode_rows(raw_rows, feed_logic))
+                return
 
         else:  # HTTP/HTTPS URLs
             response = requests.get(url, stream=True, timeout=10)
+            content_length = int(response.headers.get("Content-Length", 0) or 0)
+
             response.raise_for_status()
 
             if is_xml:
@@ -122,7 +153,7 @@ def stream_feed(
                 )
 
             # Apply explode logic on top of the raw rows
-            yield from explode_rows(raw_rows, feed_logic)
+        yield from _responese(explode_rows(raw_rows, feed_logic))
 
     except (requests.RequestException, Exception) as e:
         print(f"Error fetching URL: {e}")
