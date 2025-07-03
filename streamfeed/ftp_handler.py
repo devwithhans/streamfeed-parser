@@ -1,8 +1,10 @@
-from urllib.parse import urlparse, unquote
+import queue
+import threading
+from urllib.parse import urlparse
 import ftplib
 import io
 
-from typing import Tuple
+from typing import Generator, Tuple
 
 
 def parse_ftp_url(url: str) -> Tuple[str, str, str, str]:
@@ -10,46 +12,18 @@ def parse_ftp_url(url: str) -> Tuple[str, str, str, str]:
     Parse an FTP URL into components: host, username, password, path.
     Format: ftp://[username:password@]host/path
     """
-    print("here")
+    parsed = urlparse(url)
+    host = parsed.netloc
+    path = parsed.path
 
-    # Handle URLs with special characters in credentials
-    # First, extract credentials manually to avoid urlparse issues with special chars
-    if "://" in url:
-        protocol, rest = url.split("://", 1)
-
-        # Check if there are credentials
-        if "@" in rest:
-            credentials, host_path = rest.split("@", 1)
-
-            # Split credentials into username and password
-            if ":" in credentials:
-                username, password = credentials.split(":", 1)
-                # URL decode the password to handle special characters
-                password = unquote(password)
-            else:
-                username = credentials
-                password = ""
-
-            # Parse the host and path part
-            if "/" in host_path:
-                host, path = host_path.split("/", 1)
-                path = "/" + path
-            else:
-                host = host_path
-                path = "/"
+    # Extract username and password if present
+    username = password = ""
+    if "@" in host:
+        auth, host = host.split("@", 1)
+        if ":" in auth:
+            username, password = auth.split(":", 1)
         else:
-            # No credentials in URL
-            username = password = ""
-            host_path = rest
-
-            if "/" in host_path:
-                host, path = host_path.split("/", 1)
-                path = "/" + path
-            else:
-                host = host_path
-                path = "/"
-    else:
-        raise ValueError(f"Invalid FTP URL format: {url}")
+            username = auth
 
     # Make sure path starts with /
     if not path.startswith("/"):
@@ -58,30 +32,31 @@ def parse_ftp_url(url: str) -> Tuple[str, str, str, str]:
     return host, username, password, path
 
 
-def stream_from_ftp(url: str) -> bytes:
-    """
-    Stream content from an FTP URL, returning the complete content as bytes.
-    """
+def stream_from_ftp(url: str, blocksize: int = 8192) -> Generator[bytes, None, None]:
     host, username, password, path = parse_ftp_url(url)
 
     ftp = ftplib.FTP(host)
-    try:
-        if username:
-            ftp.login(username, password)
-        else:
-            ftp.login()
+    ftp.login(username, password) if username else ftp.login()
 
-        # Create a buffer to hold data chunks
-        buffer = io.BytesIO()
+    q = queue.Queue()
 
-        # RETR command is used for downloading files
-        ftp.retrbinary(f"RETR {path}", buffer.write)
+    def callback(data):
+        q.put(data)
 
-        # Return the complete content
-        return buffer.getvalue()
-
-    finally:
+    def downloader():
         try:
-            ftp.quit()
-        except:
-            ftp.close()
+            ftp.retrbinary(f"RETR {path}", callback, blocksize=blocksize)
+        finally:
+            q.put(None)  # Sentinel to signal end of stream
+
+    t = threading.Thread(target=downloader)
+    t.start()
+
+    try:
+        while True:
+            chunk = q.get()
+            if chunk is None:
+                break
+            yield chunk
+    finally:
+        ftp.quit()

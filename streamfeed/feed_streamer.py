@@ -61,7 +61,13 @@ def stream_feed(
         if is_ftp:
             # For FTP URLs, we download the content and create a file-like object
             content = stream_from_ftp(url)
-            content_length = len(content)
+            # content_length = len(content)
+            for line in content:
+
+                print("line")
+                print(line)
+                break
+            return
             file_obj = io.BytesIO(content)
 
             if compression_type == "zip":
