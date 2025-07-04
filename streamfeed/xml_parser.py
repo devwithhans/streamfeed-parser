@@ -84,7 +84,6 @@ def stream_xml_feed(
     decompress_type: Optional[str] = None,
 ) -> Iterator[Dict[str, Any]]:
     """Stream XML from HTTP response with optional decompression using iterparse."""
-
     try:
         if decompress_type == "zip":
             content = response.content

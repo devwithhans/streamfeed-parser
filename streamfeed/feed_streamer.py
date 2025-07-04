@@ -18,14 +18,36 @@ from .csv_parser import stream_csv_lines, stream_csv_feed
 from .transform import explode_rows
 
 
+class CountingIO:
+    def __init__(self, raw_stream):
+        self.raw_stream = raw_stream
+        self.bytes_read = 0
+
+    def read(self, *args, **kwargs):
+        data = self.raw_stream.read(*args, **kwargs)
+        self.bytes_read += len(data)
+        return data
+
+    def __getattr__(self, name):
+        return getattr(self.raw_stream, name)
+
+
 class StreamResponse:
 
-    def __init__(self, content_length: int, data: Dict[str, Any]):
+    def __init__(
+        self, content_length: int, data: Dict[str, Any], bytes_read: Optional[int] = 0
+    ):
+
         self.content_length: int = content_length
+        self.bytes_read: int = bytes_read
         self.data: Dict[str, Any] = data
 
     def dict(self):
-        return {"content_lenght": self.content_length, "data": self.data}
+        return {
+            "content_lenght": self.content_length,
+            "data": self.data,
+            "bytes_read": self.bytes_read,
+        }
 
 
 def stream_feed(
@@ -52,14 +74,21 @@ def stream_feed(
     item_tag = feed_logic.get("xml_item_tag", "product") if feed_logic else "product"
     content_length = None
 
-    def _responese(data):
+    def _response(data):
         if add_content_length:
             for row in data:
-                yield StreamResponse(content_length=content_length, data=row)
+                # Read bytes from the wrapped .raw
+                yield StreamResponse(
+                    content_length=content_length,
+                    bytes_read=getattr(response.raw, "bytes_read", None),
+                    data=row,
+                )
         else:
             yield from data
 
     try:
+        print(compression_type)
+        print(is_xml)
         if is_ftp:
             ftp_generator = stream_from_ftp(url)
             response = FTPResponse(ftp_generator)
@@ -69,6 +98,8 @@ def stream_feed(
             response = requests.get(url, stream=True, timeout=10)
             content_length = int(response.headers.get("Content-Length", 0) or 0)
             response.raise_for_status()
+
+        response.raw = CountingIO(response.raw)
 
         if is_xml:
             raw_rows = stream_xml_feed(
@@ -86,7 +117,7 @@ def stream_feed(
                 decompress_type=compression_type,
             )
 
-        yield from _responese(explode_rows(raw_rows, feed_logic))
+        yield from _response(explode_rows(raw_rows, feed_logic))
 
     except (requests.RequestException, Exception) as e:
         print(f"Error fetching URL: {e}")

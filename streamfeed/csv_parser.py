@@ -206,20 +206,32 @@ def stream_csv_feed(
                         )
 
         elif decompress_type == "gz":
-            # Wrap response.raw in a GzipFile
-            gz = gzip.GzipFile(fileobj=response.raw)
+            gz = gzip.GzipFile(fileobj=response.raw.read())
             lines_gen = (line.decode("utf-8", errors="replace") for line in gz)
             yield from stream_csv_lines(lines_gen, limit_rows, max_field_length)
 
         elif decompress_type == "bz2":
-            bz = bz2.BZ2File(response.raw)
+            bz = bz2.BZ2File(response.raw.read())
             lines_gen = (line.decode("utf-8", errors="replace") for line in bz)
             yield from stream_csv_lines(lines_gen, limit_rows, max_field_length)
 
         else:
             # No compression or unsupported format => treat as plaintext
-            lines_gen = response.iter_lines(decode_unicode=True)
-            yield from stream_csv_lines(lines_gen, limit_rows, max_field_length)
+            def gen_lines():
+                raw = response.raw  # this is already a CountingIO
+                buf = b""
+                # read in chunks so we never load the whole file at once
+                for chunk in iter(lambda: raw.read(8192), b""):
+                    buf = chunk
+                    # split out any full lines
+                    while b"\n" in buf:
+                        line, buf = buf.split(b"\n", 1)
+                        yield line.decode("utf-8", errors="replace")
+                # any trailing data
+                if buf:
+                    yield buf.decode("utf-8", errors="replace")
+
+            yield from stream_csv_lines(gen_lines(), limit_rows, max_field_length)
 
     finally:
         response.close()
