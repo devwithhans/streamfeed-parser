@@ -18,6 +18,7 @@ from .csv_parser import stream_csv_lines, stream_csv_feed
 from .transform import explode_rows
 
 
+# TOO
 class CountingIO:
     def __init__(self, raw_stream):
         self.raw_stream = raw_stream
